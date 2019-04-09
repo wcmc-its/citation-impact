@@ -26,6 +26,7 @@ class MedlineAPI extends Exception
     static public $proxy_password = '';
     static public $curl_site_url = '';
 
+    private $medline_api = '133a99642d1cb37f50b192db0c7b11fbce09';
     private $esearch = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?';
     private $efetch = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?';
 
@@ -67,6 +68,7 @@ class MedlineAPI extends Exception
         $q = array();
         $params = array(
             'db' => $this->db,
+            'api_key' => $this->medline_api,
             'retmode' => $this->retmode,
             'retmax' => $this->retmax,
             'retstart' => $this->retstart,
@@ -92,6 +94,7 @@ class MedlineAPI extends Exception
         // Setup the URL for efetch
         $params = array(
             'db' => $this->db,
+            'api_key' => $this->medline_api,
             'retmode' => $this->retmode,
             'retmax' => $this->retmax,
             'id' => (string)$pmid
@@ -116,6 +119,7 @@ class MedlineAPI extends Exception
         // Setup the URL for efetch
         $params = array(
             'db' => $this->db,
+            'api_key' => $this->medline_api,
             'retmode' => $this->retmode,
             'retmax' => $this->retmax,
             'id' => str_replace(' ', '%20', trim($str_pmids))
@@ -163,69 +167,69 @@ class MedlineAPI extends Exception
         $data = array();
         foreach ($xml->PubmedArticle as $art) {
 
-                // Full metadata
+            // Full metadata
 
-                // Authors array contains concatendated LAST NAME + INITIALS
-                $authors = array();
-                if (isset($art->MedlineCitation->Article->AuthorList->Author)) {
-                    try {
-                        foreach ($art->MedlineCitation->Article->AuthorList->Author as $k => $a) {
-                            $authors[] = (string)$a->LastName . ' ' . (string)$a->Initials;
-                        }
-                    } catch (Exception $e) {
-                        $a = $art->MedlineCitation->Article->AuthorList->Author;
+            // Authors array contains concatendated LAST NAME + INITIALS
+            $authors = array();
+            if (isset($art->MedlineCitation->Article->AuthorList->Author)) {
+                try {
+                    foreach ($art->MedlineCitation->Article->AuthorList->Author as $k => $a) {
                         $authors[] = (string)$a->LastName . ' ' . (string)$a->Initials;
                     }
+                } catch (Exception $e) {
+                    $a = $art->MedlineCitation->Article->AuthorList->Author;
+                    $authors[] = (string)$a->LastName . ' ' . (string)$a->Initials;
                 }
+            }
 
-                // Keywords array
-                $keywords = array();
-                if (isset($art->MedlineCitation->MeshHeadingList->MeshHeading)) {
-                    foreach ($art->MedlineCitation->MeshHeadingList->MeshHeading as $k => $m) {
-                        $keywords[] = (string)$m->DescriptorName;
-                        if (isset($m->QualifierName)) {
-                            if (is_array($m->QualifierName)) {
-                                $keywords = array_merge($keywords, $m->QualifierName);
-                            } else {
-                                $keywords[] = (string)$m->QualifierName;
-                            }
+            // Keywords array
+            $keywords = array();
+            if (isset($art->MedlineCitation->MeshHeadingList->MeshHeading)) {
+                foreach ($art->MedlineCitation->MeshHeadingList->MeshHeading as $k => $m) {
+                    $keywords[] = (string)$m->DescriptorName;
+                    if (isset($m->QualifierName)) {
+                        if (is_array($m->QualifierName)) {
+                            $keywords = array_merge($keywords, $m->QualifierName);
+                        } else {
+                            $keywords[] = (string)$m->QualifierName;
                         }
                     }
                 }
+            }
 
-                // Article IDs array
-                $articleid = array();
-                if (isset($art->PubmedData->ArticleIdList)) {
-                    foreach ($art->PubmedData->ArticleIdList->ArticleId as $id) {
-                        $articleid[] = $id;
-                    }
+            // Article IDs array
+            $articleid = array();
+            if (isset($art->PubmedData->ArticleIdList)) {
+                foreach ($art->PubmedData->ArticleIdList->ArticleId as $id) {
+                    $articleid[] = $id;
                 }
+            }
 
-                $article_types = array();
-                if (isset($art->MedlineCitation->Article->PublicationTypeList)) {
-                    foreach ($art->MedlineCitation->Article->PublicationTypeList->children() as $id) {
-                        $article_types[] = $id;
-                    }
+            $article_types = array();
+            if (isset($art->MedlineCitation->Article->PublicationTypeList)) {
+                foreach ($art->MedlineCitation->Article->PublicationTypeList->children() as $id) {
+                    $article_types[] = $id;
                 }
+            }
 
-                $data[] = array(
-                    'pmid' => (string)$art->MedlineCitation->PMID,
-                    'volume' => (string)$art->MedlineCitation->Article->Journal->JournalIssue->Volume,
-                    'issue' => (string)$art->MedlineCitation->Article->Journal->JournalIssue->Issue,
-                    'year' => (string)$art->MedlineCitation->Article->Journal->JournalIssue->PubDate->Year,
-                    'month' => (string)$art->MedlineCitation->Article->Journal->JournalIssue->PubDate->Month,
-                    'pages' => (string)$art->MedlineCitation->Article->Pagination->MedlinePgn,
-                    'issn' => (string)$art->MedlineCitation->Article->Journal->ISSN,
-                    'journal' => (string)$art->MedlineCitation->Article->Journal->Title,
-                    'journalabbrev' => (string)$art->MedlineCitation->Article->Journal->ISOAbbreviation,
-                    'title' => (string)$art->MedlineCitation->Article->ArticleTitle,
-                    'abstract' => (string)$art->MedlineCitation->Article->Abstract->AbstractText,
-                    'affiliation' => (string)$art->MedlineCitation->Article->Affiliation,
-                    'authors' => $authors,
-                    'articleid' => implode(',', $articleid),
-                    'articletype' => implode(' | ', $article_types),
-                    'keywords' => $keywords
-                );
+            $data[] = array(
+                'pmid' => (string)$art->MedlineCitation->PMID,
+                'volume' => (string)$art->MedlineCitation->Article->Journal->JournalIssue->Volume,
+                'issue' => (string)$art->MedlineCitation->Article->Journal->JournalIssue->Issue,
+                'year' => (string)$art->MedlineCitation->Article->Journal->JournalIssue->PubDate->Year,
+                'month' => (string)$art->MedlineCitation->Article->Journal->JournalIssue->PubDate->Month,
+                'pages' => (string)$art->MedlineCitation->Article->Pagination->MedlinePgn,
+                'issn' => (string)$art->MedlineCitation->Article->Journal->ISSN,
+                'journal' => (string)$art->MedlineCitation->Article->Journal->Title,
+                'journalabbrev' => (string)$art->MedlineCitation->Article->Journal->ISOAbbreviation,
+                'title' => (string)$art->MedlineCitation->Article->ArticleTitle,
+                'abstract' => (string)$art->MedlineCitation->Article->Abstract->AbstractText,
+                'affiliation' => (string)$art->MedlineCitation->Article->Affiliation,
+                'authors' => $authors,
+                'articleid' => implode(',', $articleid),
+                'articletype' => implode(' | ', $article_types),
+                'keywords' => $keywords
+            );
 
         }
         return $data;
